@@ -1,0 +1,39 @@
+workspace:
+  base: /go
+  path: src/github.com/pbalogh-sa/drone-clair
+
+pipeline:
+  build:
+    image: golang:1.9
+    environment:
+      - CGO_ENABLED=0
+    commands:
+      - go test -cover -coverprofile=coverage.out
+      - go build -ldflags "-s -w -X main.revision=$(git rev-parse HEAD)" -a
+
+  scan_build_image:
+    image: poke/drone-clair:1.2
+    scan_image: golang:1.9
+    output: High
+    treshold: 20
+    secrets: [ clair_url, docker_username, docker_password ]
+
+  scan_base_image:
+    image: poke/drone-clair:1.2
+    scan_image: alpine:3.7
+    output: Medium
+    treshold: 1
+    secrets: [ clair_url, docker_username, docker_password ]
+
+  publish:
+    image: plugins/docker
+    repo: poke/drone-clair
+    tags: [ 1.3 ]
+    secrets: [ docker_username, docker_password ] 
+
+  scan_created_image:
+    image: poke/drone-clair:1.2
+    scan_image: poke/drone-clair:1.3
+    output: Medium
+    treshold: 1
+    secrets: [ clair_url, docker_username, docker_password ]
